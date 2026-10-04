@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Temporary half-pipe ramp - TW-HP-001 rev P01</title>
+<style>
+  :root { --navy:#213c73; --ink:#020617; --line:#e3e8ef; --soft:#f4f6f9; --flag:#b30d0d; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--soft); color:var(--ink);
+         font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  header { background:linear-gradient(135deg,#020617 0%,#1e3667 55%,#213c73 100%); color:#fff;
+           padding:22px 18px 18px; }
+  header h1 { margin:0 0 5px; font-size:1.28rem; letter-spacing:-0.01em; }
+  header p { margin:0; opacity:.85; font-size:.85rem; }
+  .wrap { max-width:860px; margin:0 auto; padding:16px 14px 40px; }
+  .stamp { background:#fff; border:1px solid var(--flag); color:var(--flag); font-weight:700;
+           padding:10px 12px; border-radius:8px; font-size:.82rem; margin:0 0 16px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 16px;
+          margin:0 0 12px; }
+  .card h2 { margin:0 0 6px; font-size:1rem; }
+  .card p { margin:0 0 10px; font-size:.87rem; color:#41536b; }
+  .btns { display:flex; flex-wrap:wrap; gap:8px; }
+  a.btn { display:inline-block; text-decoration:none; background:var(--navy); color:#fff;
+          padding:11px 15px; border-radius:8px; font-size:.88rem; font-weight:600; }
+  a.btn.alt { background:#fff; color:var(--navy); border:1px solid var(--navy); }
+  .big a.btn { font-size:.95rem; padding:13px 18px; }
+  ul.k { margin:6px 0 0; padding-left:18px; font-size:.85rem; color:#41536b; }
+  ul.k li { margin:0 0 5px; }
+  img.shot { width:100%; border-radius:8px; border:1px solid var(--line); margin:6px 0 10px; }
+  footer { font-size:.78rem; color:#5d708c; padding:0 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Temporary half-pipe ramp &mdash; temporary works pack</h1>
+  <p>Ref TW-HP-001 &nbsp;|&nbsp; Rev P01 &nbsp;|&nbsp; 4 October 2026 &nbsp;|&nbsp; for Dal Hopwood</p>
+</header>
+<div class="wrap">
+
+  <p class="stamp">NOT A DESIGN &mdash; NOT FOR CONSTRUCTION &mdash; NOT A PERMIT TO LOAD OR RIDE.
+     The wind pressure is calculated here. The structure is not designed here. The design and its
+     independent check must be produced, checked and owned by a competent temporary works designer,
+     and nothing is erected, ballasted or ridden until a permit to load has been issued.</p>
+
+  <div class="card big">
+    <h2>Send this one &mdash; the full report, one file</h2>
+    <p>Everything in this pack in a single document: the report, the drawing sheet, the wind and
+       hold-down sheet, the priced build sheet and the builder's briefing.</p>
+    <div class="btns">
+      <a class="btn" href="TW-HP-001-REPORT.pdf">Download the report (PDF, 11 pages)</a>
+    </div>
+  </div>
+
+  <div class="card big">
+    <h2>The 3D model &mdash; open it first</h2>
+    <p>The ramp as built from this geometry. On a phone, drag one finger to orbit and pinch to
+       zoom; the <strong>frame only</strong> switch hides the ply so you see ribs, legs and
+       bearers, which is the view a temporary works reviewer wants.</p>
+    <p style="font-size:.82rem;color:#8a2b2b;">Known issue: the model opens with the camera
+       raking along the ramp, so it does not show you the trough until you spin it round. The
+       stills below are from angles that do read. Fix in hand.</p>
+    <div class="btns">
+      <a class="btn" href="3d/">Open the 3D model</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>What it looks like</h2>
+    <p>Rendered from the actual model geometry, so the arrangement, the proportions and the frame
+       are the design rather than an artist's impression.</p>
+    <img class="shot" src="renders/02-down-the-pipe.png"
+         alt="Looking down the length of the trough" />
+    <img class="shot" src="renders/01-from-the-side-and-above.png"
+         alt="The ramp from the side and above" />
+    <img class="shot" src="renders/04-frame-only.png"
+         alt="Frame only: ribs, legs and bearers" />
+  </div>
+
+  <div class="card">
+    <h2>The documents</h2>
+    <div class="btns">
+      <a class="btn" href="TW-HP-001-DRAWINGS-S1.pdf">Drawing sheet (A3)</a>
+      <a class="btn alt" href="TW-HP-001-CALC.pdf">Wind and hold-down (A4)</a>
+      <a class="btn alt" href="TW-HP-001-TAKEOFF.pdf">Build sheet</a>
+      <a class="btn alt" href="TW-HP-001-TAKEOFF.xlsx">Excel</a>
+      <a class="btn alt" href="TW-HP-001-TAKEOFF.csv">CSV</a>
+      <a class="btn alt" href="TW-HP-001-BRIEFING.pdf">Builder's briefing</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>The headline: it has to be held down</h2>
+    <ul class="k">
+      <li>The ramp presents a <strong>40 m&sup2; face</strong> to the wind. It is a sail.</li>
+      <li>Self weight about <strong>3.4 t</strong>, resisting roughly 10 kN on tarmac.</li>
+      <li>Wind force <strong>19 to 30 kN</strong> depending on the shape factor assumed.</li>
+      <li>So: <strong>3 to 7 tonnes of ballast, or ground anchors</strong>, before anyone rides it.</li>
+      <li>Uplift and the dynamic load of a rider are <em>not</em> checked here &mdash; the
+          designer's.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Open inputs before anything is bought</h2>
+    <ul class="k">
+      <li><strong>The site</strong> &mdash; the wind map value comes from the location.</li>
+      <li><strong>The shape factor</strong> &mdash; assumed 1.0 to 1.6, and it drives the ballast.</li>
+      <li><strong>The height</strong> &mdash; adopted 2.00 m, because 5.00 = 1.00 flat + 2 x 2.00.</li>
+      <li><strong>The ground</strong> &mdash; tarmac assumed; anchors may replace ballast.</li>
+      <li><strong>Public use</strong> &mdash; decides which product standard applies.</li>
+    </ul>
+  </div>
+
+  <footer>
+    <p>Governing standards: BS EN 14974:2019 (skateparks), BS EN 13814-1:2019+A1:2024 (amusement
+       devices), BS EN 1991-1-4, BS 5975-1:2024 / BS 5975-2:2024, CDM 2015.</p>
+  </footer>
+</div>
+</body>
+</html>
