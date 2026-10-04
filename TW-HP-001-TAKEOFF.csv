@@ -1,0 +1,21 @@
+TW-HP-001 rev P01 - priced build sheet - 4 October 2026
+RATE BASIS,"Indicative UK supply rates, 4 October 2026, delivered. Excludes overheads, profit, prelims, plant, the design fee, the independent check, the ride inspection regime, and the event insurance."
+
+Section,Description,Quantity,Unit,Rate GBP,Amount GBP,Note
+A. TIMBER,"Leg 100 x 100 C24 treated, average 1.50 m",36,no,16.50,594.00,"2 per cross frame, both sides. Length varies with the transition"
+A. TIMBER,"Bearer / rail 100 x 75 C24 treated, laid flat",180,m,8.20,1476.00,"9 runs x 20 m: 3 under the flat, 3 up each transition"
+A. TIMBER,"Cross bearer under the flat, 100 x 75",27,m,8.20,221.40,18 frames x 1.5 m across the flat bottom
+B. PLY,"Ply 12 mm exterior, riding surface, two layers",115,sheet,38.00,4370.00,"146 m2 surface + 24 m2 deck, doubled = 340 m2, plus cutting waste"
+B. PLY,"Ply 18 mm exterior, side and end closing",26,sheet,46.00,1196.00,About 76 m2 closing so nobody can get inside the structure
+B. PLY,"Ply 18 mm, curved ribs, 300 mm deep",20,sheet,46.00,920.00,"36 ribs in two segments each, nested 4 segments per sheet"
+B. PLY,Ply 18 mm spreader pads 450 x 450 under every leg,7,sheet,46.00,322.00,"36 pads, cut from 7 sheets"
+C. STEEL,"Coping tube 60 mm dia, both top edges",40,m,18.00,720.00,"2 x 20 m, with end caps and fixings to the deck"
+C. STEEL,"Screw and bolt fixings, coping, ribs to rails, ply to ribs",1,item,620.00,620.00,"Allowance: about 4,000 screws at 150 c/c plus M10 bolts"
+D. BALLAST,"Ballast to hold the ramp down, see the calc sheet",5.0,t,130.00,650.00,5 t in the middle of the 3.0-6.8 t range. Concrete blocks or water ballast
+D. BALLAST,"Ground anchors, alternative to ballast if the tarmac may be broken",0,no,0.00,0.00,Priced as nil. Cheaper if the ground allows - CHECK before ordering ballast
+E. LABOUR,Carpenter,10.0,day,245.00,2450.00,"2 carpenters x 5 days: cut ribs, frame, deck, surface, closing"
+E. LABOUR,General labourer,4.0,day,185.00,740.00,"Assisting, handling sheets, ballast"
+
+,"Materials, steel and ballast",,,,11089.40,
+,Labour,,,,3190.00,
+,"TOTAL excluding OH&P, prelims",,,,14279.40,

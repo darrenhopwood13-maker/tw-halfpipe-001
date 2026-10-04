@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<title>Temporary Half-Pipe Ramp — Communication Model</title>
+<style>
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#0d1117;color:#e6edf3;
+    font:13px/1.32 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    touch-action:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;
+    -webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+  canvas{display:block;touch-action:none}
+  #hdr{position:fixed;top:0;left:0;right:0;z-index:30;display:flex;flex-wrap:wrap;
+    gap:6px 10px;align-items:center;padding:7px 10px;background:rgba(13,17,23,.88);
+    border-bottom:1px solid #26303d;backdrop-filter:blur(6px)}
+  #hdr .ttl{font-weight:700;font-size:14px;letter-spacing:.2px;flex:1 1 auto;min-width:140px}
+  #hdr .btns{display:flex;gap:6px;flex-wrap:wrap}
+  #hdr button{font:inherit;font-size:12px;padding:6px 10px;border-radius:6px;
+    border:1px solid #38424f;background:#1a222c;color:#dae4ee;cursor:pointer;white-space:nowrap}
+  #hdr button.on{background:#1f6f4a;border-color:#2f9e6b;color:#eafff3}
+  #legend{flex:1 1 100%;font-size:11.5px;color:#93a6bb}
+  #legend b{color:#dfeaf5}
+  #badge{flex:1 1 100%;font-size:10.5px;line-height:1.38;color:#ffdcdc;
+    background:rgba(150,25,25,.38);border:1px solid #b03a3a;border-radius:6px;padding:5px 8px}
+  #badge b{color:#fff}
+  #hint{position:fixed;right:8px;bottom:8px;z-index:30;font-size:11px;color:#8ea3b8;
+    background:rgba(13,17,23,.68);padding:4px 8px;border-radius:6px;pointer-events:none;max-width:60vw}
+  #stick{position:fixed;left:14px;bottom:14px;width:118px;height:118px;border-radius:50%;
+    background:rgba(20,28,38,.45);border:2px solid rgba(140,175,210,.45);z-index:25;
+    touch-action:none;display:none}
+  #knob{position:absolute;left:50%;top:50%;width:52px;height:52px;border-radius:50%;
+    background:rgba(150,195,235,.72);border:2px solid rgba(220,240,255,.85);
+    transform:translate(-50%,-50%);touch-action:none;pointer-events:none}
+  #errbox{position:fixed;left:8px;top:8px;right:8px;z-index:60;display:none;
+    background:#7a1414;color:#fff;font:12px/1.4 ui-monospace,monospace;padding:10px;border-radius:8px;
+    white-space:pre-wrap;max-height:60vh;overflow:auto}
+  .gone{display:none !important}
+  @media (max-width:520px){
+    #hdr{padding:6px 8px;gap:5px 8px}
+    #hdr .ttl{font-size:12.5px}
+    #hdr button{font-size:11px;padding:5px 8px}
+    #legend{font-size:10.5px}
+    #badge{font-size:9.5px}
+    #stick{width:104px;height:104px;left:10px;bottom:10px}
+  }
+</style>
+</head>
+<body>
+<div id="hdr">
+  <div class="ttl">Temporary Half-Pipe Ramp — Communication Model</div>
+  <div class="btns">
+    <button id="btnMode">Orbit view</button>
+    <button id="btnFrame">Frame only</button>
+    <button id="btnLabels">Labels</button>
+  </div>
+  <div id="legend">Overall footprint <b>6.20 m &#215; 20.00 m</b> &nbsp;&#183;&nbsp; riding surface <b>5.00 m</b> wide (inside the deck line) &nbsp;&#183;&nbsp; coping height <b>2.00 m</b> &nbsp;&#183;&nbsp; flat bottom <b>1.00 m</b> &nbsp;&#183;&nbsp; transition radius <b>R 2.00 m</b> &nbsp;&#183;&nbsp; length <b>20.00 m</b></div>
+  <div id="badge"><b>COMMUNICATION MODEL — NOT A DESIGN — NOT FOR CONSTRUCTION.</b> The temporary works designer owns the design and its independent check. Nothing is used or loaded without a permit to load. The ramp must be anchored as designed before anyone rides it.</div>
+</div>
+<div id="stick"><div id="knob"></div></div>
+<div id="hint"></div>
+<div id="errbox"></div>
+
+<script src="three.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var IS_TOUCH = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+  if (IS_TOUCH) document.documentElement.classList.add('touch');
+
+  var errbox = document.getElementById('errbox');
+  function fail(m) { errbox.style.display = 'block'; errbox.textContent += m + '\n'; }
+  window.addEventListener('error', function (e) { fail('ERROR: ' + (e.message || e)); });
+  window.addEventListener('unhandledrejection', function (e) { fail('REJECTION: ' + (e && e.reason)); });
+
+  if (typeof THREE === 'undefined') { fail('three.min.js did not load'); return; }
+
+  // ------------------------------------------------------------------ renderer
+  var canvas = document.createElement('canvas');
+  document.body.appendChild(canvas);
+  var renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, preserveDrawingBuffer: true });
+  } catch (ex) { fail('WebGL unavailable: ' + ex.message); return; }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  if (THREE.sRGBEncoding !== undefined) renderer.outputEncoding = THREE.sRGBEncoding;
+
+  var scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x8fb3d0);
+  scene.fog = new THREE.Fog(0x9dbdd6, 55, 165);
+
+  var camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.1, 500);
+  camera.rotation.order = 'YXZ';
+
+  scene.add(new THREE.HemisphereLight(0xd2e6f7, 0x4b4a42, 0.72));
+  scene.add(new THREE.AmbientLight(0xffffff, 0.26));
+  var sun = new THREE.DirectionalLight(0xfff4e6, 1.05);
+  sun.position.set(16, 24, -9);
+  sun.target.position.set(10, 0, 2.5);
+  scene.add(sun); scene.add(sun.target);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.left = -18; sun.shadow.camera.right = 18;
+  sun.shadow.camera.top = 18; sun.shadow.camera.bottom = -18;
+  sun.shadow.camera.near = 1; sun.shadow.camera.far = 80;
+  sun.shadow.bias = -0.0007;
+  sun.shadow.camera.updateProjectionMatrix();
+
+  // ------------------------------------------------------------------ materials
+  function mat(c, rough, metal, dbl) {
+    return new THREE.MeshStandardMaterial({
+      color: c, roughness: rough, metalness: metal || 0,
+      side: dbl ? THREE.DoubleSide : THREE.FrontSide
+    });
+  }
+  var M_TARMAC  = mat(0x6d7176, 0.98, 0.02);
+  var M_DECK    = mat(0xd8b26a, 0.92, 0.0, true);   // 24 mm ply riding surface
+  var M_RIB     = mat(0xc79a52, 0.90, 0.0, true);   // cut ply ribs
+  var M_TIMBER  = mat(0xc39a63, 0.88, 0.0, false);  // C24 legs / bearers
+  var M_PLY     = mat(0xbf9354, 0.92, 0.0, true);   // 18 mm side closing
+  var M_DECKPL  = mat(0xb2843f, 0.90, 0.0, false);  // deck platform
+  var M_STEEL   = mat(0xdfe6ee, 0.26, 0.86, false); // coping tube
+  var M_HIVIS   = mat(0xe8ef1a, 0.70, 0.0, false);
+  var M_DARK    = mat(0x2b3038, 0.90, 0.0, false);
+  var M_SKIN    = mat(0xe0b48c, 0.80, 0.0, false);
+  var M_CAR     = mat(0x9aa0a6, 0.55, 0.30, false);
+  var M_GLASS   = mat(0x4a5560, 0.25, 0.50, false);
+
+  // ------------------------------------------------------------------ helpers
+  var G = new THREE.Group();
+  scene.add(G);
+  var HIDE_IN_FRAME = [];              // ply elements hidden by "frame only"
+  var LABEL_SPRITES = [];
+
+  // ONE convention for every box: w along X, d along Z, h along Y.
+  // x, z are CENTRES; yb is the BOTTOM of the box. Metres.
+  function bx(w, d, h, x, yb, z, material, ply) {
+    var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+    m.position.set(x, yb + h / 2, z);
+    m.castShadow = true; m.receiveShadow = true;
+    if (ply) HIDE_IN_FRAME.push(m);
+    G.add(m);
+    return m;
+  }
+
+  // Closed 2-D polygon in the (z,y) plane, extruded TH along X, centred at xc.
+  function extrudeZY(pts, xc, th, material, ply) {
+    var sh = new THREE.Shape();
+    sh.moveTo(-pts[0][0], pts[0][1]);
+    for (var i = 1; i < pts.length; i++) sh.lineTo(-pts[i][0], pts[i][1]);
+    sh.closePath();
+    var g = new THREE.ExtrudeGeometry(sh, { depth: th, bevelEnabled: false, curveSegments: 2 });
+    g.rotateY(Math.PI / 2);                // local +Z -> world +X, local +X -> world -Z (=+z here)
+    g.computeVertexNormals();
+    var m = new THREE.Mesh(g, material);
+    m.position.x = xc - th / 2;
+    m.castShadow = true; m.receiveShadow = true;
+    if (ply) HIDE_IN_FRAME.push(m);
+    G.add(m);
+    return m;
+  }
+
+  // ------------------------------------------------------------------ set-out
+  var R = 2.00, ZL = 2.00, ZR = 3.00, CH = 2.00, TH = 0.024;
+  var RIB_IN = R + TH;              // 2.024  (deck soffit)
+  var RIB_OUT = R + TH + 0.100;     // 2.124  (100 mm rib depth)
+  var TARMAC_Y = -0.12;             // working level the deck frame stands on
+  var XLEN = 20.00;
+  var NSEG = 30, i, k, th;
+
+  // ride-surface profile, left coping -> right coping
+  var prof = [];
+  for (i = 0; i <= NSEG; i++) {
+    th = (Math.PI / 2) * (1 - i / NSEG);
+    prof.push({ z: ZL - R * Math.sin(th), y: CH - R * Math.cos(th), nz: -Math.sin(th), ny: -Math.cos(th) });
+  }
+  for (i = 1; i <= 4; i++) prof.push({ z: 2 + i / 4, y: 0, nz: 0, ny: -1 });
+  for (i = 1; i <= NSEG; i++) {
+    th = (Math.PI / 2) * (i / NSEG);
+    prof.push({ z: ZR + R * Math.sin(th), y: CH - R * Math.cos(th), nz: Math.sin(th), ny: -Math.cos(th) });
+  }
+
+  // ---- tarmac -------------------------------------------------------------
+  var ground = new THREE.Mesh(new THREE.PlaneGeometry(28, 14), M_TARMAC);
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.set(10, TARMAC_Y, 2.5);
+  ground.receiveShadow = true;
+  G.add(ground);
+
+  // ---- 24 mm ply riding shell, real thickness following the curve ---------
+  var shellPoly = [];
+  for (i = 0; i < prof.length; i++) shellPoly.push([prof[i].z, prof[i].y]);
+  for (i = prof.length - 1; i >= 0; i--) shellPoly.push([prof[i].z + TH * prof[i].nz, prof[i].y + TH * prof[i].ny]);
+  extrudeZY(shellPoly, XLEN / 2, XLEN, M_DECK, true);
+
+  // ---- side closing: end walls at x=0 and x=20 ----------------------------
+  var endPoly = [[0, 0], [5, 0]];
+  for (i = NSEG; i >= 0; i--) {                       // right transition soffit, coping -> flat
+    th = (Math.PI / 2) * (i / NSEG);
+    endPoly.push([ZR + RIB_IN * Math.sin(th), CH - RIB_IN * Math.cos(th)]);
+  }
+  for (i = 0; i <= NSEG; i++) {                       // flat soffit -> left coping
+    th = (Math.PI / 2) * (i / NSEG);
+    endPoly.push([ZL - RIB_IN * Math.sin(th), CH - RIB_IN * Math.cos(th)]);
+  }
+  extrudeZY(endPoly, 0.0, 0.018, M_PLY, true);
+  extrudeZY(endPoly, XLEN, 0.018, M_PLY, true);
+
+  // ---- side closing: 18 mm skirts below the transitions, full length ------
+  function soffitY(z) {
+    var s;
+    if (z <= ZL) { s = Math.min(1, (ZL - z) / RIB_IN); return CH - RIB_IN * Math.sqrt(Math.max(0, 1 - s * s)); }
+    if (z >= ZR) { s = Math.min(1, (z - ZR) / RIB_IN); return CH - RIB_IN * Math.sqrt(Math.max(0, 1 - s * s)); }
+    return CH - RIB_IN;
+  }
+  function ribOuterY(z) {                             // outer (lowest) edge of the rib at z
+    var s;
+    if (z <= ZL) { s = Math.min(1, Math.max(0, (ZL - z) / R)); return CH - RIB_OUT * Math.sqrt(Math.max(0, 1 - s * s)); }
+    if (z >= ZR) { s = Math.min(1, Math.max(0, (z - ZR) / R)); return CH - RIB_OUT * Math.sqrt(Math.max(0, 1 - s * s)); }
+    return CH - RIB_OUT;
+  }
+  (function () {
+    var zs = 0.009, ze = 4.991;
+    var topS = soffitY(zs);
+    bx(XLEN, 0.018, topS - TARMAC_Y, XLEN / 2, TARMAC_Y, zs, M_PLY, true);
+    var topE = soffitY(ze);
+    bx(XLEN, 0.018, topE - TARMAC_Y, XLEN / 2, TARMAC_Y, ze, M_PLY, true);
+  }());
+
+  // ------------------------------------------------------------------ stations
+  var NSTA = 18, STA = [];
+  for (i = 0; i < NSTA; i++) STA.push(i * XLEN / (NSTA - 1));
+
+  // ---- curved ply ribs, 100 mm deep, 18 mm thick, both transitions --------
+  function arcPoly(cx, sgn) {
+    var p = [], t;
+    for (k = 0; k <= 12; k++) { t = (Math.PI / 2) * (k / 12); p.push([cx + sgn * RIB_OUT * Math.sin(t), CH - RIB_OUT * Math.cos(t)]); }
+    for (k = 12; k >= 0; k--) { t = (Math.PI / 2) * (k / 12); p.push([cx + sgn * RIB_IN * Math.sin(t), CH - RIB_IN * Math.cos(t)]); }
+    return p;
+  }
+  var RIB_L = arcPoly(ZL, -1), RIB_R = arcPoly(ZR, 1);
+  for (i = 0; i < NSTA; i++) {
+    extrudeZY(RIB_L, STA[i], 0.018, M_RIB, false);
+    extrudeZY(RIB_R, STA[i], 0.018, M_RIB, false);
+  }
+
+  // ---- legs on spreader pads ---------------------------------------------
+  var OUT_TOP = 1.950;                     // outer leg top = soffit of deck platform
+  var LEGZ = [-0.30, 1.20, 3.80, 5.30];
+  var LEGTOP = [OUT_TOP, ribOuterY(1.20), ribOuterY(3.80), OUT_TOP];
+  var PAD = 0.45, PAD_T = 0.018;
+  for (i = 0; i < NSTA; i++) {
+    for (k = 0; k < LEGZ.length; k++) {
+      bx(PAD, PAD, PAD_T, STA[i], TARMAC_Y, LEGZ[k], M_PLY, true);              // spreader pad
+      var yb = TARMAC_Y + PAD_T;
+      bx(0.10, 0.10, LEGTOP[k] - yb, STA[i], yb, LEGZ[k], M_TIMBER, false);      // 100 x 100 C24
+    }
+  }
+
+  // ---- longitudinal bearers, 100 x 75 laid flat, full 20 m, two levels ----
+  bx(XLEN, 0.10, 0.075, XLEN / 2, OUT_TOP - 0.075, -0.30, M_TIMBER, false);      // high, coping line
+  bx(XLEN, 0.10, 0.075, XLEN / 2, OUT_TOP - 0.075, 5.30, M_TIMBER, false);
+  bx(XLEN, 0.10, 0.075, XLEN / 2, ribOuterY(1.20) - 0.075, 1.20, M_TIMBER, false); // low, under the flat
+  bx(XLEN, 0.10, 0.075, XLEN / 2, ribOuterY(3.80) - 0.075, 3.80, M_TIMBER, false);
+
+  // ---- legs braced across the width where they meet the flat bottom -------
+  for (i = 0; i < NSTA; i++) bx(0.075, 2.60, 0.060, STA[i], -0.105, 2.50, M_TIMBER, false);
+
+  // ---- deck platforms behind the copings ---------------------------------
+  bx(XLEN, 0.60, 0.05, XLEN / 2, 1.95, -0.30, M_DECKPL, true);
+  bx(XLEN, 0.60, 0.05, XLEN / 2, 1.95, 5.30, M_DECKPL, true);
+
+  // ---- coping: 60 mm steel tube, both top edges, full length -------------
+  function coping(z) {
+    var g = new THREE.CylinderGeometry(0.03, 0.03, XLEN, 18);
+    g.rotateZ(Math.PI / 2);
+    var m = new THREE.Mesh(g, M_STEEL);
+    m.position.set(XLEN / 2, CH, z);
+    m.castShadow = true; m.receiveShadow = true;
+    G.add(m);
+  }
+  coping(0.0); coping(5.0);
+
+  // ---- hi-vis figures for scale ------------------------------------------
+  function figure(x, z) {
+    var g = new THREE.Group();
+    g.position.set(x, TARMAC_Y, z);
+    function part(w, h, d, px, py, matr) {
+      var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), matr);
+      m.position.set(px, py, 0);
+      m.castShadow = true; m.receiveShadow = true; g.add(m); return m;
+    }
+    part(0.13, 0.88, 0.17, -0.09, 0.44, M_DARK);
+    part(0.13, 0.88, 0.17, 0.09, 0.44, M_DARK);
+    part(0.44, 0.70, 0.26, 0, 1.23, M_HIVIS);
+    part(0.12, 0.52, 0.14, -0.28, 1.16, M_HIVIS);
+    part(0.12, 0.52, 0.14, 0.28, 1.16, M_HIVIS);
+    var head = new THREE.Mesh(new THREE.SphereGeometry(0.115, 14, 10), M_SKIN);
+    head.position.set(0, 1.70, 0); head.castShadow = true; g.add(head);
+    G.add(g);
+    return g;
+  }
+  figure(6.00, -1.80);
+  figure(15.00, 6.50);
+
+  // ---- three plain parked cars, far edge of the tarmac --------------------
+  function car(x, z) {
+    var g = new THREE.Group();
+    g.position.set(x, TARMAC_Y, z);
+    var body = new THREE.Mesh(new THREE.BoxGeometry(4.20, 0.80, 1.80), M_CAR);
+    body.position.set(0, 0.55, 0);
+    var cab = new THREE.Mesh(new THREE.BoxGeometry(2.10, 0.62, 1.62), M_CAR);
+    cab.position.set(-0.15, 1.26, 0);
+    var gl = new THREE.Mesh(new THREE.BoxGeometry(2.14, 0.30, 1.64), M_GLASS);
+    gl.position.set(-0.15, 1.32, 0);
+    [body, cab, gl].forEach(function (m) { m.castShadow = true; m.receiveShadow = true; g.add(m); });
+    G.add(g);
+  }
+  car(2.0, -3.40); car(7.0, -3.40); car(12.0, -3.40);
+
+  // ------------------------------------------------------------------ labels
+  var labelScale = IS_TOUCH ? 0.72 : 1.0;
+  function roundRect(g, x, y, w, h, r) {
+    g.beginPath();
+    g.moveTo(x + r, y); g.lineTo(x + w - r, y); g.quadraticCurveTo(x + w, y, x + w, y + r);
+    g.lineTo(x + w, y + h - r); g.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    g.lineTo(x + r, y + h); g.quadraticCurveTo(x, y + h, x, y + h - r);
+    g.lineTo(x, y + r); g.quadraticCurveTo(x, y, x + r, y); g.closePath();
+  }
+  function label(text, x, y, z) {
+    var fs = 44, pad = 18;
+    var c = document.createElement('canvas');
+    var g = c.getContext('2d');
+    g.font = 'bold ' + fs + 'px sans-serif';
+    var tw = g.measureText(text).width;
+    c.width = Math.ceil(tw + pad * 2); c.height = fs + pad * 2;
+    g = c.getContext('2d');
+    g.font = 'bold ' + fs + 'px sans-serif';
+    g.fillStyle = 'rgba(10,15,22,0.88)';
+    roundRect(g, 0, 0, c.width, c.height, 14); g.fill();
+    g.strokeStyle = '#7fd1ff'; g.lineWidth = 3;
+    roundRect(g, 2, 2, c.width - 4, c.height - 4, 13); g.stroke();
+    g.fillStyle = '#eaf6ff'; g.textBaseline = 'middle';
+    g.fillText(text, pad, c.height / 2 + 2);
+    var tex = new THREE.CanvasTexture(c);
+    tex.needsUpdate = true;
+    var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, depthWrite: false, transparent: true }));
+    var hW = 0.40 * labelScale;
+    sp.scale.set(hW * (c.width / c.height), hW, 1);
+    sp.position.set(x, y, z);
+    sp.renderOrder = 999;
+    sp.visible = false;
+    scene.add(sp);
+    LABEL_SPRITES.push(sp);
+    return sp;
+  }
+  label('OVERALL LENGTH 20.00 m', 10.0, 0.55, -2.30);
+  label('OVERALL WIDTH 6.20 m  (5.00 m RIDING SURFACE)', 21.9, 2.30, 2.50);
+  label('COPING HEIGHT 2.00 m', 3.20, 2.72, 0.10);
+  label('FLAT BOTTOM 1.00 m', 10.0, 0.95, 2.50);
+  label('TRANSITION RADIUS R 2.00 m', 6.60, 1.35, 1.05);
+
+  // ------------------------------------------------------------------ cameras
+  // Walk yaw/pitch and orbit theta/phi are INDEPENDENT state. setMode() never
+  // derives one from the other - that is the bug that leaves the model empty.
+  var walkPos = new THREE.Vector3(24.0, 1.70, -4.0);
+  var yaw = 0, pitch = 0;                                     // walk
+  var orbitTarget = new THREE.Vector3(10.0, 1.00, 2.50);
+  var orbitTheta = 0, orbitPhi = 0, orbitRadius = 1;          // orbit
+
+  (function initCameras() {
+    var d = new THREE.Vector3().subVectors(orbitTarget, walkPos);
+    var len = d.length();
+    pitch = Math.asin(d.y / len);
+    var cp = Math.cos(pitch);
+    yaw = Math.atan2(-d.x / (len * cp), -d.z / (len * cp));
+    orbitRadius = len;
+    orbitPhi = Math.acos(-d.y / len);
+    orbitTheta = Math.atan2(-d.x / len, -d.z / len);
+  }());
+
+  var mode = IS_TOUCH ? 'orbit' : 'walk';
+  var labelsOn = !IS_TOUCH;
+  var frameOnly = false;
+  var freezeCam = false;
+
+  function applyOrbit() {
+    var sp = Math.sin(orbitPhi), cp = Math.cos(orbitPhi);
+    camera.position.set(
+      orbitTarget.x + orbitRadius * sp * Math.sin(orbitTheta),
+      orbitTarget.y + orbitRadius * cp,
+      orbitTarget.z + orbitRadius * sp * Math.cos(orbitTheta));
+    camera.lookAt(orbitTarget);
+  }
+  function applyWalk() {
+    camera.position.copy(walkPos);
+    camera.rotation.set(pitch, yaw, 0, 'YXZ');
+  }
+  function setMode(m) {
+    mode = m;
+    if (m === 'orbit') applyOrbit(); else applyWalk();
+    document.getElementById('btnMode').textContent = (m === 'orbit') ? 'Orbit view' : 'Walk view';
+    document.getElementById('btnMode').className = (m === 'orbit') ? 'on' : '';
+    stickEl.style.display = (m === 'walk') ? 'block' : 'none';
+  }
+
+  // ------------------------------------------------------------------ controls
+  var stick = { x: 0, y: 0 };
+  var stickEl = document.getElementById('stick');
+  var knobEl = document.getElementById('knob');
+  var keys = {};
+
+  function setBruteButtonState() {
+    document.getElementById('btnLabels').className = labelsOn ? 'on' : '';
+    document.getElementById('btnFrame').className = frameOnly ? 'on' : '';
+  }
+
+  function toggleFrame() {
+    frameOnly = !frameOnly;
+    HIDE_IN_FRAME.forEach(function (m) { m.visible = !frameOnly; });
+    setBruteButtonState();
+  }
+  function toggleLabels() {
+    labelsOn = !labelsOn;
+    LABEL_SPRITES.forEach(function (s) { s.visible = labelsOn; });
+    setBruteButtonState();
+  }
+  document.getElementById('btnMode').addEventListener('click', function () { setMode(mode === 'orbit' ? 'walk' : 'orbit'); });
+  document.getElementById('btnFrame').addEventListener('click', toggleFrame);
+  document.getElementById('btnLabels').addEventListener('click', toggleLabels);
+
+  // ---- keyboard / mouse ---------------------------------------------------
+  window.addEventListener('keydown', function (e) {
+    keys[e.code] = true; keys[String.fromCharCode(e.keyCode).toLowerCase()] = true;
+    if (e.key === 'PageUp') walkPos.y = Math.min(6, walkPos.y + 0.10);
+    if (e.key === 'PageDown') walkPos.y = Math.max(0.40, walkPos.y - 0.10);
+    if (e.key === 'f' || e.key === 'F') toggleFrame();
+    if (e.key === 'l' || e.key === 'L') toggleLabels();
+  });
+  window.addEventListener('keyup', function (e) {
+    keys[e.code] = false; keys[String.fromCharCode(e.keyCode).toLowerCase()] = false;
+  });
+
+  var drag = null, panning = false;
+  function isStickTarget(t) { return t === stickEl || (stickEl.contains && stickEl.contains(t)); }
+
+  // Guard every pointer-lock call - iOS Safari has none.
+  function tryPointerLock() {
+    if (IS_TOUCH) return;
+    if (!canvas.requestPointerLock) return;
+    try { canvas.requestPointerLock(); } catch (e) { /* silent */ }
+  }
+  canvas.addEventListener('click', tryPointerLock);
+
+  canvas.addEventListener('mousedown', function (e) {
+    if (e.button === 2) { panning = true; drag = { x: e.clientX, y: e.clientY }; e.preventDefault(); return; }
+    drag = { x: e.clientX, y: e.clientY };
+  });
+  window.addEventListener('mouseup', function () { drag = null; panning = false; });
+  window.addEventListener('mousemove', function (e) {
+    var locked = document.pointerLockElement === canvas;
+    if (locked) {
+      applyLook(e.movementX, e.movementY, 0.0022);
+      return;
+    }
+    if (panning && mode === 'orbit') {
+      var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      drag = { x: e.clientX, y: e.clientY };
+      var s = orbitRadius * 0.0016;
+      var rt = new THREE.Vector3(Math.sin(orbitTheta + Math.PI / 2), 0, Math.cos(orbitTheta + Math.PI / 2));
+      var fw = new THREE.Vector3(Math.sin(orbitTheta), 0, Math.cos(orbitTheta));
+      orbitTarget.addScaledVector(rt, dx * s).addScaledVector(fw, -dy * s);
+      return;
+    }
+    if (!drag) return;
+    var ddx = e.clientX - drag.x, ddy = e.clientY - drag.y;
+    drag = { x: e.clientX, y: e.clientY };
+    applyLook(ddx, ddy, 0.0055);
+  });
+  canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  canvas.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    orbitRadius = Math.max(2.5, Math.min(90, orbitRadius * Math.exp(e.deltaY * 0.0012)));
+  }, { passive: false });
+
+  function applyLook(dx, dy, s) {
+    if (mode === 'walk') {
+      yaw -= dx * s;
+      pitch = Math.max(-1.45, Math.min(1.45, pitch - dy * s));
+    } else {
+      orbitTheta -= dx * s * 1.35;
+      orbitPhi = Math.max(0.08, Math.min(Math.PI - 0.08, orbitPhi - dy * s * 1.35));
+    }
+  }
+
+  // ---- touch: thumbstick --------------------------------------------------
+  function stickMove(e) {
+    var t = e.touches && e.touches[0];
+    if (!t) return;
+    var r = stickEl.getBoundingClientRect();
+    var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    var dx = t.clientX - cx, dy = t.clientY - cy;
+    var rad = r.width / 2 - 8;
+    var len = Math.sqrt(dx * dx + dy * dy) || 1;
+    var cl = Math.min(1, len / rad);
+    var ux = dx / len * cl, uy = dy / len * cl;
+    stick.x = ux; stick.y = uy;
+    knobEl.style.transform = 'translate(calc(-50% + ' + (ux * rad).toFixed(1) + 'px), calc(-50% + ' + (uy * rad).toFixed(1) + 'px))';
+  }
+  function stickReset() {
+    stick.x = 0; stick.y = 0;
+    knobEl.style.transform = 'translate(-50%,-50%)';
+  }
+  ['touchstart', 'touchmove'].forEach(function (ev) {
+    stickEl.addEventListener(ev, function (e) {
+      e.preventDefault(); e.stopPropagation(); stickMove(e);
+    }, { passive: false });
+  });
+  ['touchend', 'touchcancel'].forEach(function (ev) {
+    stickEl.addEventListener(ev, function (e) {
+      e.preventDefault(); e.stopPropagation(); stickReset();
+    }, { passive: false });
+  });
+
+  // ---- touch: drag anywhere to look, two fingers to pinch -----------------
+  var touchLook = null, pinch = null;
+  canvas.addEventListener('touchstart', function (e) {
+    if (isStickTarget(e.target)) return;
+    e.preventDefault();
+    if (e.touches.length === 1) {
+      touchLook = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      pinch = null;
+    } else if (e.touches.length === 2) {
+      touchLook = null;
+      pinch = { d: touchDist(e) };
+    }
+  }, { passive: false });
+  canvas.addEventListener('touchmove', function (e) {
+    if (isStickTarget(e.target)) return;
+    e.preventDefault();
+    if (e.touches.length === 1 && touchLook) {
+      var dx = e.touches[0].clientX - touchLook.x;
+      var dy = e.touches[0].clientY - touchLook.y;
+      touchLook = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      applyLook(dx, dy, 0.008);
+    } else if (e.touches.length === 2) {
+      var d = touchDist(e);
+      if (pinch) {
+        orbitRadius = Math.max(2.5, Math.min(90, orbitRadius * (pinch.d / Math.max(1, d))));
+      }
+      pinch = { d: d };
+    }
+  }, { passive: false });
+  function touchEnd(e) {
+    if (isStickTarget(e.target)) return;
+    if (e.touches.length === 0) { touchLook = null; pinch = null; }
+    else if (e.touches.length === 1) { touchLook = { x: e.touches[0].clientX, y: e.touches[0].clientY }; pinch = null; }
+  }
+  canvas.addEventListener('touchend', touchEnd, { passive: false });
+  canvas.addEventListener('touchcancel', touchEnd, { passive: false });
+  function touchDist(e) {
+    var a = e.touches[0], b = e.touches[1];
+    return Math.sqrt(Math.pow(a.clientX - b.clientX, 2) + Math.pow(a.clientY - b.clientY, 2));
+  }
+
+  // ------------------------------------------------------------------ loop
+  var last = performance.now();
+  function animate() {
+    requestAnimationFrame(animate);
+    var now = performance.now();
+    var dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+
+    if (!freezeCam) {
+      if (mode === 'walk') {
+        var f = (keys['KeyW'] || keys['w'] ? 1 : 0) - (keys['KeyS'] || keys['s'] ? 1 : 0) - stick.y;
+        var s = (keys['KeyD'] || keys['d'] ? 1 : 0) - (keys['KeyA'] || keys['a'] ? 1 : 0) + stick.x;
+        var mag = Math.sqrt(f * f + s * s);
+        if (mag > 0.02) {
+          if (mag > 1) { f /= mag; s /= mag; }
+          var sp = (keys['ShiftLeft'] || keys['ShiftRight'] ? 9.0 : 4.2) * dt;
+          walkPos.x += (-Math.sin(yaw) * f + Math.cos(yaw) * s) * sp;
+          walkPos.z += (-Math.cos(yaw) * f - Math.sin(yaw) * s) * sp;
+        }
+        applyWalk();
+      } else {
+        applyOrbit();
+      }
+    }
+    renderer.render(scene, camera);
+  }
+
+  window.addEventListener('resize', function () {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  document.getElementById('hint').textContent = IS_TOUCH
+    ? 'Drag to look \u00b7 pinch to zoom \u00b7 thumbstick to walk \u00b7 buttons top'
+    : 'WASD move \u00b7 Shift run \u00b7 PgUp/PgDn eye height \u00b7 drag look \u00b7 wheel zoom \u00b7 right-drag pan';
+
+  setMode(mode);
+  setBruteButtonState();
+  LABEL_SPRITES.forEach(function (sp) { sp.visible = labelsOn; });
+  animate();
+
+  // ------------------------------------------------------------------ dbg hooks
+  window.__app = { scene: scene, camera: camera, renderer: renderer, sun: sun, group: G };
+  window.__dbg = {
+    state: function () {
+      return {
+        mode: mode,
+        camera: [camera.position.x, camera.position.y, camera.position.z],
+        stick: [stick.x, stick.y],
+        orbit: [orbitTheta, orbitPhi, orbitRadius],
+        labels: labelsOn, frameOnly: frameOnly,
+        touch: IS_TOUCH, hasTouchClass: document.documentElement.classList.contains('touch'),
+        stickVisible: stickEl.style.display !== 'none'
+      };
+    },
+    stats: function () {
+      renderer.render(scene, camera);
+      var gl = renderer.getContext();
+      var w = renderer.domElement.width, h = renderer.domElement.height;
+      var buf = new Uint8Array(w * h * 4);
+      gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+      var counts = {}, distinct = 0;
+      var n = w * h, p, key;
+      for (p = 0; p < n; p++) {
+        key = (buf[p * 4] >> 3) << 10 | (buf[p * 4 + 1] >> 3) << 5 | (buf[p * 4 + 2] >> 3);
+        if (counts[key] === undefined) { counts[key] = 1; distinct++; } else counts[key]++;
+      }
+      var modal = 0, modalN = 0;
+      for (key in counts) { if (counts[key] > modalN) { modalN = counts[key]; modal = +key; } }
+      var lit = 0;
+      for (p = 0; p < n; p++) {
+        key = (buf[p * 4] >> 3) << 10 | (buf[p * 4 + 1] >> 3) << 5 | (buf[p * 4 + 2] >> 3);
+        if (key !== modal) lit++;
+      }
+      return { w: w, h: h, distinct: distinct, lit: lit, total: n, modalCount: modalN, modal: modal };
+    },
+    errText: function () { return errbox.textContent; },
+    setMode: setMode,
+    setOrbit: function (t, p, r) { orbitTheta = t; orbitPhi = p; orbitRadius = r; if (mode === 'orbit') applyOrbit(); },
+    frameOnly: toggleFrame,
+    labels: toggleLabels
+  };
+
+  window.__hideUI = function () {
+    ['hdr', 'stick', 'hint', 'errbox'].forEach(function (id) {
+      var el = document.getElementById(id); if (el) el.classList.add('gone');
+    });
+    LABEL_SPRITES.forEach(function (s) { s.visible = false; });
+  };
+  window.__still = function (px, py, pz, tx, ty, tz) {
+    freezeCam = true;
+    camera.position.set(px, py, pz);
+    camera.lookAt(new THREE.Vector3(tx, ty, tz));
+    camera.updateMatrixWorld(true);
+    renderer.render(scene, camera);
+    return true;
+  };
+}());
+</script>
+</body>
+</html>
