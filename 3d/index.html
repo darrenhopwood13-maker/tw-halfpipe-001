@@ -184,7 +184,7 @@
   }
 
   // ---- tarmac -------------------------------------------------------------
-  var ground = new THREE.Mesh(new THREE.PlaneGeometry(28, 14), M_TARMAC);
+  var ground = new THREE.Mesh(new THREE.PlaneGeometry(60, 44), M_TARMAC);
   ground.rotation.x = -Math.PI / 2;
   ground.position.set(10, TARMAC_Y, 2.5);
   ground.receiveShadow = true;
@@ -358,7 +358,7 @@
     return sp;
   }
   label('OVERALL LENGTH 20.00 m', 10.0, 0.55, -2.30);
-  label('OVERALL WIDTH 6.20 m  (5.00 m RIDING SURFACE)', 21.9, 2.30, 2.50);
+  label('OVERALL WIDTH 6.20 m  (5.00 m RIDING SURFACE)', 19.2, 2.75, 2.50);
   label('COPING HEIGHT 2.00 m', 3.20, 2.72, 0.10);
   label('FLAT BOTTOM 1.00 m', 10.0, 0.95, 2.50);
   label('TRANSITION RADIUS R 2.00 m', 6.60, 1.35, 1.05);
@@ -382,7 +382,26 @@
     orbitTheta = Math.atan2(-d.x / len, -d.z / len);
   }());
 
-  var mode = IS_TOUCH ? 'orbit' : 'walk';
+  (function defaultViews() {
+    // Open on a three-quarter view that actually shows the trough and the frame.
+    // The old default sat beyond the end of the ramp at eye level, so 20 m of
+    // trough read edge-on as a fence until you dragged it round.
+    var p = new THREE.Vector3(26.5, 8.2, -9.5);
+    var d = new THREE.Vector3().subVectors(orbitTarget, p);
+    var len = d.length();
+    orbitRadius = len;
+    orbitPhi = Math.acos(-d.y / len);
+    orbitTheta = Math.atan2(-d.x / len, -d.z / len);
+
+    walkPos.set(25.0, 1.70, -7.0);                 // walk stays at eye height, just repositioned
+    var w = new THREE.Vector3().subVectors(orbitTarget, walkPos);
+    var wl = w.length();
+    pitch = Math.asin(w.y / wl);
+    var cp = Math.cos(pitch);
+    yaw = Math.atan2(-w.x / (wl * cp), -w.z / (wl * cp));
+  }());
+
+  var mode = 'orbit';        // open showing the trough on desktop AND phone; walk is one click away
   var labelsOn = !IS_TOUCH;
   var frameOnly = false;
   var freezeCam = false;
